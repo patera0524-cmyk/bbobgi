@@ -1,0 +1,6 @@
+{
+  "name": "겨울 선물 페스티벌 - 140칸 겨울 테마 뽑기",
+  "description": "초등학교 행사 및 태블릿 환경을 위한 140인 한 화면 겨울 테마 뽑기 웹애플리케이션",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
