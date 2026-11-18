@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Plus, Trash2, AlertCircle, RefreshCw, CheckCircle2, Sliders, Sparkles, Volume2, VolumeX } from 'lucide-react';
+import { X, Plus, Trash2, AlertCircle, RefreshCw, CheckCircle2, Sliders, Sparkles, Volume2, VolumeX, Music } from 'lucide-react';
 import { PrizeConfig, PRESETS } from '../types';
 
 interface SettingsModalProps {
@@ -10,6 +10,8 @@ interface SettingsModalProps {
   hasOpenedCards: boolean;
   soundEnabled: boolean;
   onToggleSound: () => void;
+  bgmEnabled: boolean;
+  onToggleBgm: () => void;
   onSaveNewBoard: (count: number, prizes: PrizeConfig[]) => void;
   onResetProgressOnly: () => void;
 }
@@ -22,6 +24,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   hasOpenedCards,
   soundEnabled,
   onToggleSound,
+  bgmEnabled,
+  onToggleBgm,
   onSaveNewBoard,
   onResetProgressOnly,
 }) => {
@@ -312,29 +316,58 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
 
           {/* Sound & Auxiliary Settings */}
-          <div className="flex items-center justify-between pt-1 border-t border-white/10 text-xs">
-            <span className="text-slate-300">효과음 (축하 팡파르 및 눈꽃 소리)</span>
-            <button
-              type="button"
-              onClick={onToggleSound}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                soundEnabled
-                  ? 'border-cyan-400/40 bg-cyan-500/20 text-cyan-200'
-                  : 'border-white/15 bg-white/5 text-slate-400'
-              }`}
-            >
-              {soundEnabled ? (
-                <>
-                  <Volume2 className="h-4 w-4 text-cyan-300" />
-                  <span>소리 켜짐</span>
-                </>
-              ) : (
-                <>
-                  <VolumeX className="h-4 w-4" />
-                  <span>소리 꺼짐</span>
-                </>
-              )}
-            </button>
+          <div className="space-y-2.5 pt-2 border-t border-white/10 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-300 font-cute">겨울 테마 배경음악 (BGM)</span>
+              <button
+                type="button"
+                onClick={onToggleBgm}
+                aria-pressed={bgmEnabled}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-jua transition-all cursor-pointer ${
+                  bgmEnabled
+                    ? 'border-cyan-400/40 bg-cyan-500/20 text-cyan-200 shadow-sm'
+                    : 'border-white/15 bg-white/5 text-slate-400 hover:bg-white/10'
+                }`}
+              >
+                {bgmEnabled ? (
+                  <>
+                    <Music className="h-4 w-4 text-cyan-300" />
+                    <span>배경음악 켜짐</span>
+                  </>
+                ) : (
+                  <>
+                    <VolumeX className="h-4 w-4" />
+                    <span>배경음악 꺼짐</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-slate-300 font-cute">효과음 (축하 팡파르 및 눈꽃 소리)</span>
+              <button
+                type="button"
+                onClick={onToggleSound}
+                aria-pressed={soundEnabled}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-jua transition-all cursor-pointer ${
+                  soundEnabled
+                    ? 'border-cyan-400/40 bg-cyan-500/20 text-cyan-200 shadow-sm'
+                    : 'border-white/15 bg-white/5 text-slate-400 hover:bg-white/10'
+                }`}
+              >
+                {soundEnabled ? (
+                  <>
+                    <Volume2 className="h-4 w-4 text-cyan-300" />
+                    <span>소리 켜짐</span>
+                  </>
+                ) : (
+                  <>
+                    <VolumeX className="h-4 w-4" />
+                    <span>소리 꺼짐</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Error Message */}

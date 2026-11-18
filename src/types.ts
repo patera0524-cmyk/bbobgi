@@ -17,6 +17,7 @@ export interface RaffleData {
   prizes: PrizeConfig[];
   cards: RaffleCard[];
   soundEnabled: boolean;
+  bgmEnabled?: boolean;
   themeTitle?: string;
 }
 

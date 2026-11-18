@@ -10,8 +10,8 @@ import {
   BarChart3,
   Maximize2,
   Minimize2,
-  Volume2,
   VolumeX,
+  Music,
   Gift,
   Users,
   CheckCircle2,
@@ -29,7 +29,9 @@ import { SnowflakeGrid } from './components/SnowflakeGrid';
 import { PrizeRevealModal } from './components/PrizeRevealModal';
 import { SettingsModal } from './components/SettingsModal';
 import { ResultsModal } from './components/ResultsModal';
+import { GrandFinaleCanvas } from './components/GrandFinaleCanvas';
 import { playTileClick, playPrizeFanfare } from './utils/sound';
+import { winterBgm } from './utils/bgm';
 
 function shuffleArray<T>(array: T[]): T[] {
   const arr = [...array];
@@ -71,6 +73,7 @@ function getDefaultData(): RaffleData {
     prizes,
     cards,
     soundEnabled: true,
+    bgmEnabled: true,
     themeTitle: '설레는 겨울 뽑기 대축제',
   };
 }
@@ -102,6 +105,8 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isResultsOpen, setIsResultsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [finaleDismissed, setFinaleDismissed] = useState(false);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
 
   // Sync to localStorage
   useEffect(() => {
@@ -131,11 +136,64 @@ export default function App() {
     }
   }, []);
 
+  const bgmEnabled = data.bgmEnabled ?? true;
+
+  // Manage background winter theme music
+  useEffect(() => {
+    if (!bgmEnabled) {
+      winterBgm.stop();
+      return;
+    }
+
+    winterBgm.start();
+
+    // Unlock AudioContext on first user interaction if browser suspended autoplay
+    const handleFirstGesture = async () => {
+      const resumed = await winterBgm.resumeIfSuspended();
+      if (resumed) {
+        if (!winterBgm.isRunning()) {
+          winterBgm.start();
+        }
+        window.removeEventListener('pointerdown', handleFirstGesture);
+        window.removeEventListener('keydown', handleFirstGesture);
+      }
+    };
+
+    window.addEventListener('pointerdown', handleFirstGesture);
+    window.addEventListener('keydown', handleFirstGesture);
+
+    return () => {
+      window.removeEventListener('pointerdown', handleFirstGesture);
+      window.removeEventListener('keydown', handleFirstGesture);
+    };
+  }, [bgmEnabled]);
+
+  useEffect(() => {
+    return () => {
+      winterBgm.stop();
+    };
+  }, []);
+
   const toggleSound = useCallback(() => {
     setData((prev) => ({
       ...prev,
       soundEnabled: !prev.soundEnabled,
     }));
+  }, []);
+
+  const toggleBgm = useCallback(() => {
+    setData((prev) => {
+      const nextBgm = !(prev.bgmEnabled ?? true);
+      if (nextBgm) {
+        winterBgm.start();
+      } else {
+        winterBgm.stop();
+      }
+      return {
+        ...prev,
+        bgmEnabled: nextBgm,
+      };
+    });
   }, []);
 
   // Handle card click
@@ -170,6 +228,7 @@ export default function App() {
   const handleSaveNewBoard = useCallback(
     (newCount: number, newPrizes: PrizeConfig[]) => {
       const newCards = generateInitialCards(newCount, newPrizes);
+      setFinaleDismissed(false);
       setData((prev) => ({
         ...prev,
         count: newCount,
@@ -182,6 +241,7 @@ export default function App() {
 
   // Reset progress only (keep board prizes, just set cards unopened)
   const handleResetProgressOnly = useCallback(() => {
+    setFinaleDismissed(false);
     setData((prev) => ({
       ...prev,
       cards: prev.cards.map((c) => ({
@@ -192,27 +252,40 @@ export default function App() {
     }));
   }, []);
 
-  // Quick reset confirmation
+  // Open in-app reset confirmation modal (avoids iframe-blocked window.alert / window.confirm)
   const handleQuickReset = useCallback(() => {
-    const openedCount = data.cards.filter((c) => c.opened).length;
-    if (openedCount === 0) {
-      alert('아직 뽑기를 진행하지 않았습니다.');
-      return;
-    }
-    const confirmed = window.confirm(
-      `현재까지 ${openedCount}명이 뽑기를 완료했습니다. 뽑기판을 초기화하고 다시 시작할까요?`
-    );
-    if (confirmed) {
-      handleResetProgressOnly();
-    }
-  }, [data.cards, handleResetProgressOnly]);
+    setIsResetConfirmOpen(true);
+  }, []);
+
+  const handleConfirmReset = useCallback(() => {
+    setFinaleDismissed(false);
+    setData((prev) => ({
+      ...prev,
+      cards: generateInitialCards(prev.count, prev.prizes),
+    }));
+    setIsResetConfirmOpen(false);
+  }, []);
 
   const openedCount = useMemo(
     () => data.cards.filter((c) => c.opened).length,
     [data.cards]
   );
+  const allOpened = data.cards.length > 0 && openedCount === data.cards.length;
   const remainingCount = data.count - openedCount;
   const progressPercent = Math.round((openedCount / (data.count || 1)) * 100);
+  const showGrandFinale =
+    allOpened &&
+    !selectedCard &&
+    !finaleDismissed &&
+    !isSettingsOpen &&
+    !isResultsOpen &&
+    !isResetConfirmOpen;
+
+  useEffect(() => {
+    if (showGrandFinale) {
+      playPrizeFanfare(data.soundEnabled);
+    }
+  }, [showGrandFinale, data.soundEnabled]);
 
   return (
     <div className="relative flex h-dvh w-screen flex-col overflow-hidden bg-gradient-to-br from-[#061433] via-[#0b2457] to-[#040e26] text-white">
@@ -285,20 +358,21 @@ export default function App() {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* Sound Effects Toggle (Tile chime & fanfare) */}
+            {/* Background Music Toggle */}
             <button
               type="button"
-              onClick={toggleSound}
+              onClick={toggleBgm}
               className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border transition-all cursor-pointer ${
-                data.soundEnabled
+                bgmEnabled
                   ? 'border-cyan-400/40 bg-cyan-500/20 text-cyan-200 hover:bg-cyan-500/30'
                   : 'border-white/15 bg-white/10 text-slate-400 hover:bg-white/20'
               }`}
-              title={data.soundEnabled ? '효과음 끄기' : '효과음 켜기'}
-              aria-label="효과음 토글"
+              title={bgmEnabled ? '배경음악 끄기' : '배경음악 켜기'}
+              aria-label="배경음악 토글"
+              aria-pressed={bgmEnabled}
             >
-              {data.soundEnabled ? (
-                <Volume2 className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
+              {bgmEnabled ? (
+                <Music className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
               ) : (
                 <VolumeX className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
               )}
@@ -389,6 +463,16 @@ export default function App() {
         </main>
       </div>
 
+      {/* Grand Finale Full-Screen Canvas Fireworks & Center Particle Effect */}
+      {showGrandFinale && (
+        <GrandFinaleCanvas
+          totalCount={data.count}
+          onOpenResults={() => setIsResultsOpen(true)}
+          onReset={handleQuickReset}
+          onDismiss={() => setFinaleDismissed(true)}
+        />
+      )}
+
       {/* Prize Reveal Modal */}
       {selectedCard && (
         <PrizeRevealModal
@@ -407,6 +491,8 @@ export default function App() {
         hasOpenedCards={openedCount > 0}
         soundEnabled={data.soundEnabled}
         onToggleSound={toggleSound}
+        bgmEnabled={bgmEnabled}
+        onToggleBgm={toggleBgm}
         onSaveNewBoard={handleSaveNewBoard}
         onResetProgressOnly={handleResetProgressOnly}
       />
@@ -419,6 +505,60 @@ export default function App() {
         prizes={data.prizes}
         cards={data.cards}
       />
+
+      {/* In-App Reset Confirmation Modal */}
+      {isResetConfirmOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in"
+          onClick={() => setIsResetConfirmOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="뽑기판 초기화 확인"
+        >
+          <div
+            className="relative w-full max-w-sm rounded-3xl border-2 border-white/30 bg-gradient-to-b from-[#132d6e] via-[#0e245c] to-[#07153b] p-6 text-center text-white shadow-[0_25px_80px_rgba(0,18,50,0.95)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-300/40 bg-amber-400/20 text-amber-300 shadow-md">
+              <RotateCcw className="h-7 w-7" />
+            </div>
+            <h2 className="text-xl font-jua text-white">
+              뽑기판을 초기화할까요?
+            </h2>
+            <p className="mt-2 text-sm font-cute text-cyan-100/90 leading-relaxed">
+              {openedCount > 0 ? (
+                <>
+                  현재까지 <b className="text-amber-300 font-jua">{openedCount}명</b>이 뽑기를 완료했습니다.
+                  <br />
+                  모든 눈꽃을 초기화하고 상품을 다시 무작위로 섞습니다.
+                </>
+              ) : (
+                <>
+                  아직 뽑기를 진행한 학생이 없습니다.
+                  <br />
+                  모든 눈꽃 속 상품 위치를 새로 무작위로 섞을까요?
+                </>
+              )}
+            </p>
+            <div className="mt-6 grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsResetConfirmOpen(false)}
+                className="rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-jua text-slate-200 hover:bg-white/20 transition-colors cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReset}
+                className="rounded-xl bg-gradient-to-r from-amber-400 via-orange-400 to-rose-500 px-4 py-2.5 text-sm font-jua text-slate-950 shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+              >
+                {openedCount > 0 ? '초기화하기' : '새로 섞기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
