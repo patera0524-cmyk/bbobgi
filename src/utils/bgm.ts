@@ -95,25 +95,29 @@ class WinterBgmPlayer {
 
   private ensureContext(): AudioContext | null {
     if (typeof window === 'undefined') return null;
-    if (!this.ctx) {
-      const AudioContextClass =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (!AudioContextClass) return null;
+    try {
+      if (!this.ctx) {
+        const AudioContextClass =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (!AudioContextClass) return null;
 
-      this.ctx = new AudioContextClass();
-      this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(0.16, this.ctx.currentTime);
+        this.ctx = new AudioContextClass();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.setValueAtTime(0.16, this.ctx.currentTime);
 
-      // Gentle low-pass filter for warm, non-harsh background ambiance
-      this.filter = this.ctx.createBiquadFilter();
-      this.filter.type = 'lowpass';
-      this.filter.frequency.setValueAtTime(2400, this.ctx.currentTime);
+        // Gentle low-pass filter for warm, non-harsh background ambiance
+        this.filter = this.ctx.createBiquadFilter();
+        this.filter.type = 'lowpass';
+        this.filter.frequency.setValueAtTime(2400, this.ctx.currentTime);
 
-      this.filter.connect(this.masterGain);
-      this.masterGain.connect(this.ctx.destination);
+        this.filter.connect(this.masterGain);
+        this.masterGain.connect(this.ctx.destination);
+      }
+      return this.ctx;
+    } catch {
+      return null;
     }
-    return this.ctx;
   }
 
   public isRunning(): boolean {
@@ -121,109 +125,126 @@ class WinterBgmPlayer {
   }
 
   public async resumeIfSuspended(): Promise<boolean> {
-    const ctx = this.ensureContext();
-    if (!ctx) return false;
-    if (ctx.state === 'suspended') {
-      try {
+    try {
+      const ctx = this.ensureContext();
+      if (!ctx) return false;
+      if (ctx.state === 'suspended') {
         await ctx.resume();
-      } catch {
-        return false;
       }
+      return ctx.state === 'running';
+    } catch {
+      return false;
     }
-    return ctx.state === 'running';
   }
 
   private playBellNote(freq: number, dur: number) {
-    if (!this.ctx || !this.filter || freq <= 0) return;
-    const now = this.ctx.currentTime;
+    try {
+      if (!this.ctx || !this.filter || freq <= 0) return;
+      const now = this.ctx.currentTime;
 
-    // Warm celesta / music-box fundamental
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(freq, now);
-
-    const decay = Math.min(2.4, dur * 1.45);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.linearRampToValueAtTime(0.45, now + 0.025);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + decay);
-
-    osc.connect(gain);
-    gain.connect(this.filter);
-    osc.start(now);
-    osc.stop(now + decay + 0.05);
-
-    // Subtle crystal overtone
-    const shimmer = this.ctx.createOscillator();
-    const shimmerGain = this.ctx.createGain();
-    shimmer.type = 'sine';
-    shimmer.frequency.setValueAtTime(freq * 2, now);
-
-    shimmerGain.gain.setValueAtTime(0.0001, now);
-    shimmerGain.gain.linearRampToValueAtTime(0.11, now + 0.015);
-    shimmerGain.gain.exponentialRampToValueAtTime(0.0001, now + decay * 0.55);
-
-    shimmer.connect(shimmerGain);
-    shimmerGain.connect(this.filter);
-    shimmer.start(now);
-    shimmer.stop(now + decay * 0.6 + 0.05);
-  }
-
-  private playPadChord(freqs: number[], dur: number) {
-    if (!this.ctx || !this.filter) return;
-    const now = this.ctx.currentTime;
-    const padDur = Math.max(1.8, dur * 2.4);
-
-    freqs.forEach((f) => {
-      if (!this.ctx || !this.filter) return;
+      // Warm celesta / music-box fundamental
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(f, now);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
 
+      const decay = Math.min(2.4, dur * 1.45);
       gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.linearRampToValueAtTime(0.10, now + 0.35);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + padDur);
+      gain.gain.linearRampToValueAtTime(0.45, now + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + decay);
 
       osc.connect(gain);
       gain.connect(this.filter);
       osc.start(now);
-      osc.stop(now + padDur + 0.08);
-    });
+      osc.stop(now + decay + 0.05);
+
+      // Subtle crystal overtone
+      const shimmer = this.ctx.createOscillator();
+      const shimmerGain = this.ctx.createGain();
+      shimmer.type = 'sine';
+      shimmer.frequency.setValueAtTime(freq * 2, now);
+
+      shimmerGain.gain.setValueAtTime(0.0001, now);
+      shimmerGain.gain.linearRampToValueAtTime(0.11, now + 0.015);
+      shimmerGain.gain.exponentialRampToValueAtTime(0.0001, now + decay * 0.55);
+
+      shimmer.connect(shimmerGain);
+      shimmerGain.connect(this.filter);
+      shimmer.start(now);
+      shimmer.stop(now + decay * 0.6 + 0.05);
+    } catch {
+      // Ignore Web Audio errors on restricted browsers
+    }
+  }
+
+  private playPadChord(freqs: number[], dur: number) {
+    try {
+      if (!this.ctx || !this.filter) return;
+      const now = this.ctx.currentTime;
+      const padDur = Math.max(1.8, dur * 2.4);
+
+      freqs.forEach((f) => {
+        if (!this.ctx || !this.filter) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(f, now);
+
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.linearRampToValueAtTime(0.10, now + 0.35);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + padDur);
+
+        osc.connect(gain);
+        gain.connect(this.filter);
+        osc.start(now);
+        osc.stop(now + padDur + 0.08);
+      });
+    } catch {
+      // Ignore Web Audio errors on restricted browsers
+    }
   }
 
   private scheduleNext() {
-    if (!this.running || !this.ctx) return;
+    if (!this.running) return;
+    try {
+      if (!this.ctx) return;
 
-    // Wait if browser hasn't unlocked AudioContext yet
-    if (this.ctx.state !== 'running') {
-      this.timerId = window.setTimeout(() => this.scheduleNext(), 400);
-      return;
-    }
+      // Wait if browser hasn't unlocked AudioContext yet
+      if (this.ctx.state !== 'running') {
+        this.timerId = window.setTimeout(() => this.scheduleNext(), 400);
+        return;
+      }
 
-    const note = WINTER_BGM_SEQUENCE[this.stepIndex];
-    if (note.freq > 0) {
-      this.playBellNote(note.freq, note.dur);
-    }
-    if (note.chord && note.chord.length > 0) {
-      this.playPadChord(note.chord, note.dur);
-    }
+      const note = WINTER_BGM_SEQUENCE[this.stepIndex];
+      if (note.freq > 0) {
+        this.playBellNote(note.freq, note.dur);
+      }
+      if (note.chord && note.chord.length > 0) {
+        this.playPadChord(note.chord, note.dur);
+      }
 
-    this.stepIndex = (this.stepIndex + 1) % WINTER_BGM_SEQUENCE.length;
-    this.timerId = window.setTimeout(() => this.scheduleNext(), note.dur * 1000);
+      this.stepIndex = (this.stepIndex + 1) % WINTER_BGM_SEQUENCE.length;
+      this.timerId = window.setTimeout(() => this.scheduleNext(), note.dur * 1000);
+    } catch {
+      this.stop();
+    }
   }
 
   public start() {
-    const ctx = this.ensureContext();
-    if (!ctx) return;
+    try {
+      const ctx = this.ensureContext();
+      if (!ctx) return;
 
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {});
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+
+      if (this.running) return;
+      this.running = true;
+      this.scheduleNext();
+    } catch {
+      this.running = false;
     }
-
-    if (this.running) return;
-    this.running = true;
-    this.scheduleNext();
   }
 
   public stop() {

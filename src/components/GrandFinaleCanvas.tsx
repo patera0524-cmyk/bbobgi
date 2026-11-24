@@ -58,15 +58,16 @@ export const GrandFinaleCanvas: React.FC<GrandFinaleCanvasProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const prefersReducedMotion =
+      window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false;
 
-    let width = window.innerWidth;
-    let height = window.innerHeight;
+    let width = Math.max(1, window.innerWidth || 1280);
+    let height = Math.max(1, window.innerHeight || 720);
     let dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     const resize = () => {
-      width = window.innerWidth;
-      height = window.innerHeight;
+      width = Math.max(1, window.innerWidth || 1280);
+      height = Math.max(1, window.innerHeight || 720);
       dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = width * dpr;
       canvas.height = height * dpr;

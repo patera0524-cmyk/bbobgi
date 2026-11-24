@@ -82,21 +82,56 @@ export default function App() {
   const [data, setData] = useState<RaffleData>(() => {
     if (typeof window === 'undefined') return getDefaultData();
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = window.localStorage?.getItem(STORAGE_KEY);
       if (saved) {
-        const parsed = JSON.parse(saved) as RaffleData;
-        if (
-          parsed &&
-          typeof parsed.count === 'number' &&
-          Array.isArray(parsed.prizes) &&
-          Array.isArray(parsed.cards) &&
-          parsed.cards.length === parsed.count
-        ) {
-          return parsed;
+        const parsed = JSON.parse(saved) as Partial<RaffleData> | null;
+        const validCount =
+          typeof parsed?.count === 'number' &&
+          Number.isInteger(parsed.count) &&
+          parsed.count > 0;
+        const validPrizes =
+          Array.isArray(parsed?.prizes) &&
+          parsed.prizes.length > 0 &&
+          parsed.prizes.every(
+            (p) =>
+              p &&
+              typeof p === 'object' &&
+              typeof p.name === 'string' &&
+              typeof p.qty === 'number' &&
+              Number.isFinite(p.qty) &&
+              p.qty >= 0
+          );
+        const validCards =
+          validCount &&
+          Array.isArray(parsed?.cards) &&
+          parsed.cards.length === parsed.count &&
+          parsed.cards.every(
+            (c) =>
+              c &&
+              typeof c === 'object' &&
+              typeof c.id === 'number' &&
+              typeof c.prize === 'string' &&
+              typeof c.opened === 'boolean'
+          );
+
+        if (parsed && validCount && validPrizes && validCards) {
+          return {
+            count: parsed.count as number,
+            prizes: parsed.prizes as PrizeConfig[],
+            cards: parsed.cards as RaffleCard[],
+            soundEnabled:
+              typeof parsed.soundEnabled === 'boolean' ? parsed.soundEnabled : true,
+            bgmEnabled:
+              typeof parsed.bgmEnabled === 'boolean' ? parsed.bgmEnabled : true,
+            themeTitle:
+              typeof parsed.themeTitle === 'string' && parsed.themeTitle.trim()
+                ? parsed.themeTitle
+                : '설레는 겨울 뽑기 대축제',
+          };
         }
       }
     } catch {
-      // Fallback on corrupt JSON
+      // Fallback on corrupt JSON or restricted storage
     }
     return getDefaultData();
   });

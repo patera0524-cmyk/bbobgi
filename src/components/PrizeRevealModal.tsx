@@ -118,7 +118,7 @@ export const PrizeRevealModal: React.FC<PrizeRevealModalProps> = ({
         {/* Big Prize Name */}
         <div className="my-3 rounded-2xl border-2 border-white/30 bg-gradient-to-r from-white/15 via-white/20 to-white/15 px-6 py-5 shadow-inner">
           <p className="text-xs font-cute text-cyan-200 mb-1">🎁 당첨 상품 🎁</p>
-          <h2 className="text-2xl sm:text-3.5xl font-jua tracking-wide text-amber-200 drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">
+          <h2 className="text-2xl sm:text-4xl font-jua tracking-wide text-amber-200 drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">
             {card.prize}
           </h2>
         </div>

@@ -21,13 +21,13 @@ export const SnowBackground: React.FC = () => {
     if (!ctx) return;
 
     let animationFrameId: number;
-    let width = (canvas.width = window.innerWidth);
-    let height = (canvas.height = window.innerHeight);
+    let width = (canvas.width = Math.max(1, window.innerWidth || 1280));
+    let height = (canvas.height = Math.max(1, window.innerHeight || 720));
 
     const handleResize = () => {
       if (!canvas) return;
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
+      width = canvas.width = Math.max(1, window.innerWidth || 1280);
+      height = canvas.height = Math.max(1, window.innerHeight || 720);
     };
 
     window.addEventListener('resize', handleResize);
